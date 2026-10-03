@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Radar Words</title>
+<style>
+:root{--bg:#f3f6f5;--card:#fff;--ink:#14302f;--mute:#5d7573;--line:#cddad8;--acc:#0f766e;--ok:#0f766e;--warn:#b45309;--bad:#b91c1c;--on:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1b1b;--card:#132626;--ink:#e3f1ef;--mute:#8fb0ac;--line:#244240;--acc:#3dd6c4;--ok:#3dd6c4;--warn:#f5b25c;--bad:#ff8a80;--on:#06201d}}
+:root[data-theme="dark"]{--bg:#0d1b1b;--card:#132626;--ink:#e3f1ef;--mute:#8fb0ac;--line:#244240;--acc:#3dd6c4;--ok:#3dd6c4;--warn:#f5b25c;--bad:#ff8a80;--on:#06201d}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font:700 28px/1.2 Georgia,"Times New Roman",serif;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 16px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+button{font:inherit;border:1px solid var(--acc);background:var(--acc);color:var(--on);padding:8px 14px;border-radius:8px;cursor:pointer}
+button.ghost{background:transparent;color:var(--acc)}
+button:focus-visible,textarea:focus-visible{outline:3px solid var(--warn);outline-offset:2px}
+.msg{min-height:24px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}
+.card label{display:flex;justify-content:space-between;font:700 22px Georgia,serif;color:var(--acc)}
+.card label small{font:13px "Segoe UI",sans-serif;color:var(--mute);align-self:center}
+textarea{width:100%;height:84px;margin:6px 0;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit;resize:vertical}
+.row{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.st{font-size:13px;min-height:20px}
+.ok{color:var(--ok)}.dup{color:var(--warn)}.bad{color:var(--bad)}
+h2{font:700 20px Georgia,serif;margin:28px 0 8px}
+.list{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-x:auto}
+.grp{margin:0 0 8px}.grp b{color:var(--acc);margin-right:6px}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:1px 10px;margin:2px 3px 2px 0;font-size:14px}
+.empty{color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+<h1>Radar Words</h1>
+<p class="sub">Type words under their starting letter, one per line or separated by commas. They are saved in A–Z order and kept for your next visit.</p>
+<div class="bar">
+<button id="addAll">Save all words</button>
+<button id="dl">Download list</button>
+<button id="clr" class="ghost">Clear list</button>
+<span class="msg" id="msg" role="status" aria-live="polite"></span>
+</div>
+<div class="grid" id="grid"></div>
+<h2>Your radar list <span id="total" class="empty"></span></h2>
+<div class="list" id="list"></div>
+</main>
+<script>
+(function(){
+var KEY="radarWords.v1", words=[];
+function load(){try{var r=localStorage.getItem(KEY);words=r?JSON.parse(r):[];if(!Array.isArray(words))words=[]}catch(e){words=[]}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(words))}catch(e){say("Could not save in this browser.","bad")}}
+function sorted(){return words.slice().sort(function(a,b){return a.localeCompare(b)})}
+var grid=document.getElementById("grid"),msg=document.getElementById("msg");
+function say(t,c){msg.textContent=t;msg.className="msg "+(c||"")}
+var L="ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+L.forEach(function(l){
+ var d=document.createElement("div");d.className="card";
+ d.innerHTML='<label for="t'+l+'">'+l+'<small id="n'+l+'"></small></label>'+
+ '<textarea id="t'+l+'" placeholder="Words starting with '+l+'" spellcheck="false"></textarea>'+
+ '<div class="row"><button data-l="'+l+'">Save '+l+'</button><span class="st" id="s'+l+'"></span></div>';
+ grid.appendChild(d);
+});
+function addFor(l){
+ var ta=document.getElementById("t"+l),st=document.getElementById("s"+l);
+ var items=ta.value.split(/[\n,;]+/).map(function(w){return w.trim().toLowerCase()}).filter(Boolean);
+ if(!items.length){st.textContent="";return {a:0,d:0,b:0}}
+ var a=0,d=0,b=0,dupW=[],badW=[],keep=[];
+ items.forEach(function(w){
+  if(w.charAt(0)!==l.toLowerCase()){b++;badW.push(w);keep.push(w);return}
+  if(words.indexOf(w)>-1){d++;dupW.push(w);return}
+  words.push(w);a++;
+ });
+ var parts=[],cls="ok";
+ if(a)parts.push(a+" added");
+ if(d){parts.push("already done: "+dupW.join(", "));cls="dup"}
+ if(b){parts.push("not "+l+": "+badW.join(", "));cls="bad"}
+ st.textContent=parts.join(" · ");st.className="st "+cls;
+ ta.value=keep.join("\n");
+ return {a:a,d:d,b:b,dupW:dupW};
+}
+function render(){
+ var s=sorted(),box=document.getElementById("list");
+ document.getElementById("total").textContent="("+s.length+" words)";
+ L.forEach(function(l){var c=s.filter(function(w){return w.charAt(0)===l.toLowerCase()}).length;document.getElementById("n"+l).textContent=c?c+" saved":""});
+ if(!s.length){box.innerHTML='<span class="empty">No words yet. Add some above.</span>';return}
+ var h="";
+ L.forEach(function(l){
+  var g=s.filter(function(w){return w.charAt(0)===l.toLowerCase()});
+  if(g.length)h+='<div class="grp"><b>'+l+'</b>'+g.map(function(w){var e=document.createElement("i");e.textContent=w;return '<span class="chip">'+e.innerHTML+'</span>'}).join("")+'</div>';
+ });
+ box.innerHTML=h;
+}
+grid.addEventListener("click",function(e){
+ var l=e.target.getAttribute&&e.target.getAttribute("data-l");if(!l)return;
+ var r=addFor(l);save();render();
+ if(r.d&&!r.a&&!r.b)say("Already done: "+r.dupW.join(", "),"dup");
+ else if(r.a)say(r.a+" word"+(r.a>1?"s":"")+" added to "+l,"ok");
+ else if(r.b)say("Words must start with "+l,"bad");
+});
+document.getElementById("addAll").onclick=function(){
+ var A=0,D=0,B=0;L.forEach(function(l){var r=addFor(l);A+=r.a;D+=r.d;B+=r.b});
+ save();render();
+ if(!A&&!D&&!B)say("Nothing to save. Type some words first.","");
+ else say(A+" added"+(D?", "+D+" already done":"")+(B?", "+B+" in the wrong letter":""),B?"bad":(A?"ok":"dup"));
+};
+document.getElementById("clr").onclick=function(){
+ if(!words.length)return;
+ if(!confirm("Delete all "+words.length+" saved words?"))return;
+ words=[];save();render();say("List cleared.","");
+};
+document.getElementById("dl").onclick=function(){
+ var s=sorted();if(!s.length){say("The list is empty.","dup");return}
+ var text=s.join("\r\n")+"\r\n";
+ claude.use("downloads").then(function(dl){
+  if(dl){return dl.save({filename:"radar-words.txt",data:text}).then(function(){say("Download ready.","ok")}).catch(function(){say("Download cancelled.","dup")})}
+  var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([text],{type:"text/plain"}));a.download="radar-words.txt";document.body.appendChild(a);a.click();a.remove();say("Download started.","ok");
+ }).catch(function(){say("Download is not available here.","bad")});
+};
+load();render();
+})();
+</script>
+</body>
+</html>
